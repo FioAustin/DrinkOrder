@@ -1,0 +1,30 @@
+FROM php:8.2-apache
+
+# 1. Install sistem dependensi dan Node.js
+RUN apt-get update && apt-get install -y \
+    libzip-dev zip unzip libpq-dev nodejs npm
+
+# 2. Aktifkan modul URL Rewrite Apache (Wajib untuk Laravel)
+RUN a2enmod rewrite
+
+# 3. Install ekstensi PHP untuk PostgreSQL
+RUN docker-php-ext-install pdo pdo_pgsql zip
+
+# 4. Atur folder kerja
+WORKDIR /var/www/html
+
+# 5. Salin semua file proyek Anda ke dalam server
+COPY . .
+
+# 6. Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+RUN composer install --no-dev --optimize-autoloader
+
+# 7. Install NPM dan Build Tailwind CSS / DaisyUI
+RUN npm install && npm run build
+
+# 8. Atur hak akses folder agar Laravel bisa berfungsi
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+
+# 9. Arahkan domain utama ke folder /public
+RUN sed -i 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf
